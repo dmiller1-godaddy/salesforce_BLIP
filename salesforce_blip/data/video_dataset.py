@@ -9,7 +9,7 @@ import decord
 from decord import VideoReader
 import json
 import os
-from data.utils import pre_caption
+from .utils import pre_caption
 
 decord.bridge.set_bridge("torch")
 
@@ -19,7 +19,7 @@ class ImageNorm(object):
     def __init__(self, mean, std):
         self.mean = torch.tensor(mean).view(1, 3, 1, 1)
         self.std = torch.tensor(std).view(1, 3, 1, 1)
-        
+
     def __call__(self, img):
 
         if torch.max(img) > 1 and self.mean.max() <= 1:
@@ -29,21 +29,21 @@ class ImageNorm(object):
 def load_jsonl(filename):
     with open(filename, "r") as f:
         return [json.loads(l.strip("\n")) for l in f.readlines()]
-    
-    
+
+
 class VideoDataset(Dataset):
 
     def __init__(self, video_root, ann_root, num_frm=4, frm_sampling_strategy="rand", max_img_size=384, video_fmt='.mp4'):
         '''
         image_root (string): Root directory of video
         ann_root (string): directory to store the annotation file
-        '''        
+        '''
         url = 'https://storage.googleapis.com/sfr-vision-language-research/datasets/msrvtt_test.jsonl'
         filename = 'msrvtt_test.jsonl'
 
         download_url(url,ann_root)
         self.annotation = load_jsonl(os.path.join(ann_root,filename))
-        
+
         self.num_frm = num_frm
         self.frm_sampling_strategy = frm_sampling_strategy
         self.max_img_size = max_img_size
@@ -53,25 +53,25 @@ class VideoDataset(Dataset):
 
         self.text = [pre_caption(ann['caption'],40) for ann in self.annotation]
         self.txt2video = [i for i in range(len(self.annotation))]
-        self.video2txt = self.txt2video               
-            
-            
+        self.video2txt = self.txt2video
+
+
     def __len__(self):
         return len(self.annotation)
 
     def __getitem__(self, index):
 
-        ann = self.annotation[index]  
+        ann = self.annotation[index]
 
-        video_path = os.path.join(self.video_root, ann['clip_name'] + self.video_fmt) 
+        video_path = os.path.join(self.video_root, ann['clip_name'] + self.video_fmt)
 
         vid_frm_array = self._load_video_from_path_decord(video_path, height=self.max_img_size, width=self.max_img_size)
 
         video = self.img_norm(vid_frm_array.float())
-        
+
         return video, ann['clip_name']
 
-        
+
 
     def _load_video_from_path_decord(self, video_path, height=None, width=None, start_time=None, end_time=None, fps=-1):
         try:
